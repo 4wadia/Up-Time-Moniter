@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Activity, 
   Server, 
@@ -7,15 +7,11 @@ import {
   Clock, 
   Globe, 
   Search,
-  MoreHorizontal,
   Bell,
   BellRing,
   Settings,
   LogOut,
-  User as UserIcon,
   ShieldAlert,
-  LayoutDashboard,
-  Menu,
   Filter,
   Tag,
   XCircle,
@@ -26,11 +22,14 @@ import {
 } from 'lucide-react';
 import { Service, ServiceStatus, Threshold, MetricType, ComparisonOperator, Alert, PageView, User } from './types';
 import { UptimeChart } from './components/UptimeChart';
-import { AnimatedBeam, MiniBeam } from './components/AnimatedBeam';
+import { MiniBeam } from './components/AnimatedBeam';
+import { SystemTopology } from './components/SystemTopology';
 import { ThresholdSettingsModal } from './components/ThresholdSettingsModal';
 import { ProfileModal } from './components/ProfileModal';
+import { ThemeToggle } from './components/ThemeToggle';
 import { AuthPages } from './components/AuthPages';
 import { AnimatePresence, motion, Variants } from 'framer-motion';
+import { RippleButton } from './components/ui/RippleButton';
 
 // Mock Data Generator
 const generateMockHistory = (baseLatency: number, variance: number): { time: string, latency: number }[] => {
@@ -52,18 +51,17 @@ const generateMockHistory = (baseLatency: number, variance: number): { time: str
 };
 
 // --- Animation Variants ---
+// Optimization: Removed 'filter: blur()' which causes massive GPU overhead and choppiness
 const pageVariants: Variants = {
-  initial: { opacity: 0, y: 15, filter: 'blur(5px)' },
+  initial: { opacity: 0, y: 15 },
   animate: { 
     opacity: 1, 
     y: 0, 
-    filter: 'blur(0px)', 
     transition: { duration: 0.4, ease: "easeOut" } 
   },
   exit: { 
     opacity: 0, 
     y: -15, 
-    filter: 'blur(5px)', 
     transition: { duration: 0.3, ease: "easeIn" } 
   }
 };
@@ -93,37 +91,20 @@ const itemVariants: Variants = {
   }
 };
 
-// Consolidated Card Variants (Entry + Interaction)
+// Consolidated Card Variants
+// Optimization: Simplified transition to reduce render cost
 const cardVariants: Variants = {
   hidden: { 
     opacity: 0, 
-    y: 20,
-    boxShadow: "0 1px 2px 0 rgba(74, 64, 58, 0.05)"
+    y: 12
   },
   show: { 
     opacity: 1, 
     y: 0,
-    boxShadow: "0 1px 2px 0 rgba(74, 64, 58, 0.05)",
     transition: { 
-      type: "spring", 
-      stiffness: 260, 
-      damping: 20
+      duration: 0.5,
+      ease: "easeOut"
     } 
-  },
-  hover: { 
-    y: -5, 
-    boxShadow: "0 20px 25px -5px rgba(74, 64, 58, 0.1), 0 8px 10px -6px rgba(74, 64, 58, 0.1)",
-    borderColor: "#d5bdaf", // almond-silk
-    transition: { 
-      type: "spring", 
-      stiffness: 400, 
-      damping: 25 
-    }
-  },
-  tap: { 
-    scale: 0.98,
-    boxShadow: "0 4px 6px -1px rgba(74, 64, 58, 0.1)",
-    transition: { duration: 0.1 }
   }
 };
 
@@ -132,7 +113,7 @@ const initialServices: Service[] = [
   {
     id: '1',
     name: 'Authentication API',
-    url: 'api.auth.upflow.dev',
+    url: 'api.auth.sentinel.dev',
     status: ServiceStatus.OPERATIONAL,
     uptimePercentage: 99.99,
     history: generateMockHistory(45, 15),
@@ -147,7 +128,7 @@ const initialServices: Service[] = [
   {
     id: '2',
     name: 'Payment Gateway',
-    url: 'pay.upflow.dev',
+    url: 'pay.sentinel.dev',
     status: ServiceStatus.DEGRADED,
     uptimePercentage: 98.45,
     history: generateMockHistory(120, 50),
@@ -159,7 +140,7 @@ const initialServices: Service[] = [
   {
     id: '3',
     name: 'Image Processing Worker',
-    url: 'worker.img.upflow.dev',
+    url: 'worker.img.sentinel.dev',
     status: ServiceStatus.DOWN,
     uptimePercentage: 0.00,
     history: generateMockHistory(400, 100).map(p => ({ ...p, latency: 0 })), 
@@ -173,7 +154,7 @@ const initialServices: Service[] = [
   {
     id: '4',
     name: 'Frontend CDN',
-    url: 'cdn.upflow.dev',
+    url: 'cdn.sentinel.dev',
     status: ServiceStatus.OPERATIONAL,
     uptimePercentage: 100.00,
     history: generateMockHistory(25, 5),
@@ -189,43 +170,34 @@ interface ServiceCardProps {
   onThresholdSettings: (service: Service) => void;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings }) => (
+const ServiceCard: React.FC<ServiceCardProps> = React.memo(({ service, onThresholdSettings }) => (
   <motion.div 
     variants={cardVariants}
-    whileHover="hover"
-    whileTap="tap"
-    className="bg-linen border border-dust-grey rounded-xl p-5 group relative cursor-default"
+    className="bg-linen border border-black dark:border-dust-grey rounded-xl p-5 shadow-card group relative cursor-default transition-all duration-500 hover:shadow-soft"
   >
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
         <div className="flex items-start gap-4">
-            <div className={`mt-1 w-3 h-3 rounded-full shrink-0 transition-shadow duration-500 ${
+            <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 transition-all duration-500 ${
                 service.status === ServiceStatus.OPERATIONAL ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
                 service.status === ServiceStatus.DEGRADED ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]' :
                 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
             }`} />
             <div>
                 <div className="flex items-center gap-2">
-                    <h3 className="font-semibold text-foreground">{service.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider border ${
-                        service.status === ServiceStatus.OPERATIONAL ? 'bg-green-100 text-green-700 border-green-200' :
-                        service.status === ServiceStatus.DEGRADED ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                        'bg-red-100 text-red-700 border-red-200'
-                    }`}>
-                        {service.status}
-                    </span>
+                    <h3 className="font-bold text-lg text-foreground tracking-tight">{service.name}</h3>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <a href={`https://${service.url}`} target="_blank" rel="noreferrer" className="text-xs text-foreground-muted hover:text-almond-silk flex items-center gap-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
+                  <a href={`https://${service.url}`} target="_blank" rel="noreferrer" className="text-xs font-medium text-foreground-muted hover:text-foreground flex items-center gap-1 transition-colors">
                       {service.url} <Globe className="w-3 h-3" />
                   </a>
-                  <span className="text-dust-grey">•</span>
-                  <span className="text-xs text-foreground-muted">{service.region}</span>
+                  <span className="text-dust-grey">|</span>
+                  <span className="text-xs font-medium text-foreground-muted">{service.region}</span>
                   {service.tags && service.tags.length > 0 && (
                      <>
-                       <span className="text-dust-grey">•</span>
+                       <span className="text-dust-grey">|</span>
                        <div className="flex items-center gap-1">
                          {service.tags.map(tag => (
-                           <span key={tag} className="text-[10px] bg-parchment border border-dust-grey/50 px-1.5 rounded-sm text-foreground-muted">#{tag}</span>
+                           <span key={tag} className="text-[10px] bg-parchment border border-dust-grey px-1.5 py-0.5 rounded-md text-foreground-muted font-semibold">#{tag}</span>
                          ))}
                        </div>
                      </>
@@ -235,53 +207,45 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings 
         </div>
         
         {/* Mini Stats & Action */}
-        <div className="flex items-center gap-6 md:justify-end">
+        <div className="flex items-center gap-6 md:justify-end pl-6 md:pl-0 border-l border-dust-grey md:border-0 ml-6 md:ml-0">
             <div className="text-right hidden sm:block">
-                <div className="text-xs text-foreground-muted">Uptime (24h)</div>
-                <div className="font-mono font-medium text-foreground">{service.uptimePercentage}%</div>
+                <div className="text-[10px] uppercase font-bold text-foreground-muted tracking-wider">Uptime</div>
+                <div className="font-mono text-sm font-bold text-foreground">{service.uptimePercentage}%</div>
             </div>
             
             <div className="text-right hidden sm:block">
-                <div className="text-xs text-foreground-muted">Response</div>
-                <div className="font-mono font-medium text-foreground">
+                <div className="text-[10px] uppercase font-bold text-foreground-muted tracking-wider">Latency</div>
+                <div className="font-mono text-sm font-bold text-foreground">
                     {service.history[0].latency}ms
                 </div>
             </div>
             
             <div className="flex items-center gap-2">
                   <motion.button 
-                    whileHover={{ scale: 1.1, backgroundColor: '#edede9' }}
-                    whileTap={{ scale: 0.9 }}
+                    whileHover={{ scale: 1.05, backgroundColor: 'var(--color-parchment)' }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={(e) => { e.stopPropagation(); onThresholdSettings(service); }}
-                    className="p-1.5 bg-white border border-dust-grey rounded-lg text-foreground-muted transition-colors relative"
+                    className="p-2 border border-dust-grey rounded-lg text-foreground-muted hover:text-foreground transition-colors relative bg-transparent"
                     title="Configure Alerts"
                   >
                     <Settings className="w-4 h-4" />
                     {service.thresholds.some(t => t.enabled) && (
-                      <span className="absolute top-0 right-0 w-2 h-2 bg-blue-400 rounded-full border border-white transform translate-x-1/4 -translate-y-1/4" />
+                      <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-foreground rounded-full" />
                     )}
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.1, backgroundColor: '#edede9' }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-1.5 rounded-lg text-foreground-muted"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
                   </motion.button>
             </div>
         </div>
     </div>
     
     {/* Chart Area */}
-    <div className="mt-6 pt-4 border-t border-dust-grey/30 relative z-10">
+    <div className="mt-6 relative z-10 h-[200px] w-full transform-gpu">
         <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2 text-xs text-foreground-muted">
-              <Clock className="w-3 h-3" /> Response Time History
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground-muted">
+              <Clock className="w-3 h-3" /> 24h Performance
             </div>
             {service.thresholds.some(t => t.metric === MetricType.LATENCY && t.enabled) && (
-              <div className="text-[10px] text-orange-600/70 font-medium">
-                Threshold: &gt; {service.thresholds.find(t => t.metric === MetricType.LATENCY && t.enabled)?.value}ms
+              <div className="text-[10px] text-foreground-muted font-bold bg-parchment px-2 py-0.5 rounded border border-dust-grey">
+                Alert &gt; {service.thresholds.find(t => t.metric === MetricType.LATENCY && t.enabled)?.value}ms
               </div>
             )}
         </div>
@@ -291,13 +255,23 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings 
         />
     </div>
   </motion.div>
-);
+));
 
 const App = () => {
   // Navigation & Auth State
   const [currentPage, setCurrentPage] = useState<PageView>('signin');
   const [user, setUser] = useState<User | null>(null);
-  
+
+  useEffect(() => {
+    // Check system preference or localStorage
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
   // App Data
   const [services, setServices] = useState<Service[]>(initialServices);
   
@@ -354,7 +328,7 @@ const App = () => {
 
   // Auth Handler
   const handleAuth = () => {
-    setUser({ name: 'John Doe', email: 'john@upflow.dev', initials: 'JD' });
+    setUser({ name: 'John Doe', email: 'john@sentinel.dev', initials: 'JD' });
     setCurrentPage('dashboard');
   };
 
@@ -376,70 +350,89 @@ const App = () => {
   };
 
   // Periodic Logic (Simulated)
+  // Use a ref to track if we've already started the initialization logic to prevent double-execution
+  // which can cause jitter or double-alerts during the initial render phase.
+  const initializationRef = useRef(false);
+
   useEffect(() => {
     if (!user) return;
     
     const checkThresholds = () => {
-      const newAlerts: Alert[] = [];
-      const now = new Date().toLocaleTimeString();
+      setAlerts(prevAlerts => {
+        const newAlerts: Alert[] = [];
+        const now = new Date().toLocaleTimeString();
 
-      services.forEach(service => {
-        service.thresholds.forEach(threshold => {
-          if (!threshold.enabled) return;
+        services.forEach(service => {
+          service.thresholds.forEach(threshold => {
+            if (!threshold.enabled) return;
 
-          let isBreach = false;
-          let currentValue = 0;
+            let isBreach = false;
+            let currentValue = 0;
 
-          if (threshold.metric === MetricType.LATENCY) {
-            currentValue = service.history[0]?.latency || 0;
-            if (threshold.operator === ComparisonOperator.GREATER_THAN) isBreach = currentValue > threshold.value;
-            else isBreach = currentValue < threshold.value;
-          } else if (threshold.metric === MetricType.UPTIME) {
-            currentValue = service.uptimePercentage;
-             if (threshold.operator === ComparisonOperator.LESS_THAN) isBreach = currentValue < threshold.value;
-             else isBreach = currentValue > threshold.value;
-          } else if (threshold.metric === MetricType.ERROR_RATE) {
-             currentValue = service.status === ServiceStatus.DOWN ? 100 : service.status === ServiceStatus.DEGRADED ? 15 : 0;
-             if (threshold.operator === ComparisonOperator.GREATER_THAN) isBreach = currentValue > threshold.value;
-          }
+            if (threshold.metric === MetricType.LATENCY) {
+              currentValue = service.history[0]?.latency || 0;
+              if (threshold.operator === ComparisonOperator.GREATER_THAN) isBreach = currentValue > threshold.value;
+              else isBreach = currentValue < threshold.value;
+            } else if (threshold.metric === MetricType.UPTIME) {
+              currentValue = service.uptimePercentage;
+              if (threshold.operator === ComparisonOperator.LESS_THAN) isBreach = currentValue < threshold.value;
+              else isBreach = currentValue > threshold.value;
+            } else if (threshold.metric === MetricType.ERROR_RATE) {
+              currentValue = service.status === ServiceStatus.DOWN ? 100 : service.status === ServiceStatus.DEGRADED ? 15 : 0;
+              if (threshold.operator === ComparisonOperator.GREATER_THAN) isBreach = currentValue > threshold.value;
+            }
 
-          if (isBreach) {
-             const exists = alerts.some(a => 
-               a.serviceId === service.id && 
-               a.thresholdId === threshold.id &&
-               a.status !== 'resolved'
-             );
-             
-             if (!exists) {
-                newAlerts.push({
-                  id: Math.random().toString(36).substr(2, 9),
-                  serviceId: service.id,
-                  thresholdId: threshold.id,
-                  message: `${threshold.metric} ${threshold.operator} ${threshold.value} (Current: ${currentValue.toFixed(0)})`,
-                  timestamp: now,
-                  severity: threshold.metric === MetricType.UPTIME || service.status === ServiceStatus.DOWN ? 'critical' : 'warning',
-                  status: 'active'
-                });
-             }
-          }
+            if (isBreach) {
+               // Check against prevAlerts passed to state updater
+               const exists = prevAlerts.some(a => 
+                 a.serviceId === service.id && 
+                 a.thresholdId === threshold.id &&
+                 a.status !== 'resolved'
+               );
+               
+               if (!exists) {
+                  newAlerts.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    serviceId: service.id,
+                    thresholdId: threshold.id,
+                    message: `${threshold.metric} ${threshold.operator} ${threshold.value} (Current: ${currentValue.toFixed(0)})`,
+                    timestamp: now,
+                    severity: threshold.metric === MetricType.UPTIME || service.status === ServiceStatus.DOWN ? 'critical' : 'warning',
+                    status: 'active'
+                  });
+               }
+            }
+          });
         });
-      });
 
-      if (newAlerts.length > 0) {
-        setAlerts(prev => [...newAlerts, ...prev]);
-      }
+        if (newAlerts.length > 0) {
+          return [...newAlerts, ...prevAlerts];
+        }
+        return prevAlerts;
+      });
     };
 
     const interval = setInterval(checkThresholds, 5000);
-    checkThresholds();
-    return () => clearInterval(interval);
-  }, [services, user, alerts]); 
+    
+    // GUARD: Only run the immediate initialization check once per component lifecycle
+    // This prevents double state updates during the initial animation phase
+    let timeout: ReturnType<typeof setTimeout>;
+    if (!initializationRef.current) {
+        initializationRef.current = true;
+        timeout = setTimeout(checkThresholds, 2500);
+    }
+    
+    return () => {
+      clearInterval(interval);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [services, user]); // Removed alerts from dependency
 
   // Handlers
-  const openThresholdSettings = (service: Service) => {
+  const openThresholdSettings = useCallback((service: Service) => {
     setServiceForThreshold(service);
     setIsThresholdModalOpen(true);
-  };
+  }, []);
 
   const handleSaveThresholds = (serviceId: string, newThresholds: Threshold[]) => {
     setServices(prev => prev.map(s => 
@@ -465,31 +458,31 @@ const App = () => {
     <div className="min-h-screen bg-parchment text-foreground font-sans selection:bg-almond-silk/30">
       
       {/* Navigation */}
-      <nav className="sticky top-0 z-40 bg-parchment/80 backdrop-blur-md border-b border-dust-grey/50">
+      <nav className="sticky top-0 z-40 bg-parchment/80 backdrop-blur-md border-b border-dust-grey/30 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div 
               className="flex items-center gap-2 cursor-pointer"
               onClick={() => setCurrentPage('dashboard')}
             >
-              <div className="w-8 h-8 bg-foreground text-parchment rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-foreground text-parchment rounded-lg flex items-center justify-center shadow-sm">
                 <Activity className="w-5 h-5" />
               </div>
-              <span className="font-bold text-xl tracking-tight">UpFlow</span>
+              <span className="font-bold text-xl tracking-tight text-foreground">Sentinel</span>
             </div>
             
-            <div className="hidden md:flex items-center gap-6 text-sm font-medium text-foreground-muted">
+            <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-foreground-muted">
               {['dashboard', 'incidents', 'monitors', 'alerts'].map((page) => (
                 <button 
                   key={page}
                   onClick={() => setCurrentPage(page as PageView)}
-                  className={`${currentPage === page ? 'text-foreground font-bold' : 'hover:text-foreground'} transition-colors relative capitalize`}
+                  className={`${currentPage === page ? 'text-foreground font-bold' : 'hover:text-foreground'} transition-colors relative capitalize py-2`}
                 >
                   {page}
                   {currentPage === page && (
                     <motion.div 
                       layoutId="nav-underline" 
-                      className="absolute -bottom-5 left-0 right-0 h-0.5 bg-foreground" 
+                      className="absolute -bottom-px left-0 right-0 h-0.5 bg-foreground" 
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     />
                   )}
@@ -498,10 +491,13 @@ const App = () => {
             </div>
 
             <div className="flex items-center gap-3">
+               
+               <ThemeToggle />
+
                <motion.button 
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-                  className={`relative p-2 rounded-full transition-colors text-foreground-muted ${isNotificationsOpen ? 'bg-linen text-foreground' : 'hover:bg-linen'}`}
+                  className={`relative p-2 rounded-full transition-colors text-foreground-muted ${isNotificationsOpen ? 'bg-linen text-foreground shadow-sm ring-1 ring-dust-grey' : 'hover:bg-linen hover:text-foreground'}`}
                >
                   <Bell className="w-5 h-5" />
                   {activeAlertsCount > 0 && (
@@ -513,7 +509,7 @@ const App = () => {
                  <motion.button 
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                    className="w-8 h-8 rounded-full bg-almond-silk/50 border border-dust-grey flex items-center justify-center text-xs font-bold text-foreground hover:ring-2 hover:ring-almond-silk transition-all"
+                    className="w-9 h-9 rounded-full bg-parchment border border-dust-grey flex items-center justify-center text-xs font-bold text-foreground hover:ring-2 hover:ring-dust-grey transition-all shadow-sm"
                  >
                    {user?.initials || 'JP'}
                  </motion.button>
@@ -527,24 +523,28 @@ const App = () => {
                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
                          animate={{ opacity: 1, scale: 1, y: 0 }}
                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                         className="absolute right-0 mt-2 w-48 bg-linen border border-dust-grey rounded-xl shadow-xl z-20 py-1"
+                         className="absolute right-0 mt-2 w-56 bg-linen border border-dust-grey rounded-xl shadow-card z-20 py-2"
                        >
-                         <div className="px-4 py-3 border-b border-dust-grey/30">
-                           <p className="text-sm font-medium text-foreground">{user?.name}</p>
-                           <p className="text-xs text-foreground-muted truncate">{user?.email}</p>
+                         <div className="px-4 py-3 border-b border-dust-grey/50">
+                           <p className="text-sm font-bold text-foreground">{user?.name}</p>
+                           <p className="text-xs font-medium text-foreground-muted truncate mt-0.5">{user?.email}</p>
                          </div>
-                         <button 
-                            onClick={() => { setIsProfileOpen(false); setIsProfileModalOpen(true); }}
-                            className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-parchment transition-colors flex items-center gap-2"
-                         >
-                           <Settings className="w-4 h-4" /> Settings
-                         </button>
-                         <button 
-                            onClick={handleSignOut}
-                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                         >
-                           <LogOut className="w-4 h-4" /> Sign Out
-                         </button>
+                         <div className="py-1">
+                            <button 
+                                onClick={() => { setIsProfileOpen(false); setIsProfileModalOpen(true); }}
+                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-foreground hover:bg-parchment transition-colors flex items-center gap-2"
+                            >
+                            <Settings className="w-4 h-4 text-foreground-muted" /> Settings
+                            </button>
+                         </div>
+                         <div className="py-1 border-t border-dust-grey/50">
+                            <button 
+                                onClick={handleSignOut}
+                                className="w-full text-left px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors flex items-center gap-2"
+                            >
+                            <LogOut className="w-4 h-4" /> Sign Out
+                            </button>
+                         </div>
                        </motion.div>
                      </>
                    )}
@@ -567,34 +567,36 @@ const App = () => {
               exit={{ opacity: 0, height: 0, marginBottom: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-linen border border-dust-grey rounded-xl p-4 shadow-sm">
+              <div className="bg-linen border border-black dark:border-dust-grey rounded-xl p-4 shadow-card">
                 <div className="flex items-center justify-between mb-3">
-                   <h3 className="font-semibold text-foreground flex items-center gap-2">
+                   <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
                      <BellRing className="w-4 h-4" /> Active Alerts ({activeAlertsCount})
                    </h3>
-                   <button onClick={() => setIsNotificationsOpen(false)} className="text-xs text-foreground-muted hover:text-foreground">Close</button>
+                   <button onClick={() => setIsNotificationsOpen(false)} className="text-xs font-medium text-foreground-muted hover:text-foreground">Close</button>
                 </div>
                 {activeAlertsCount === 0 ? (
-                  <p className="text-sm text-foreground-muted text-center py-4">No active alerts.</p>
+                  <p className="text-sm font-medium text-foreground-muted text-center py-6 bg-parchment/50 rounded-lg border border-dust-grey/30 border-dashed">No active alerts.</p>
                 ) : (
                   <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                     {alerts.filter(a => a.status === 'active').map(alert => (
-                        <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg border ${
-                            alert.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-yellow-50 border-yellow-200 text-yellow-900'
+                        <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${
+                            alert.severity === 'critical' 
+                              ? 'bg-red-50 border-red-200 text-red-900 dark:bg-red-950/20 dark:border-red-900/40 dark:text-red-200' 
+                              : 'bg-yellow-50 border-yellow-200 text-yellow-900 dark:bg-yellow-950/20 dark:border-yellow-900/40 dark:text-yellow-200'
                         }`}>
                              <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5`} />
                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{services.find(s => s.id === alert.serviceId)?.name}</p>
-                                <p className="text-xs opacity-90">{alert.message}</p>
-                                <p className="text-[10px] opacity-75 mt-1">{alert.timestamp}</p>
+                                <p className="text-sm font-bold truncate">{services.find(s => s.id === alert.serviceId)?.name}</p>
+                                <p className="text-xs font-medium opacity-90">{alert.message}</p>
+                                <p className="text-[10px] font-medium opacity-75 mt-1">{alert.timestamp}</p>
                              </div>
-                             <button onClick={() => acknowledgeAlert(alert.id)} className="text-xs hover:underline opacity-60 hover:opacity-100 font-medium">Ack</button>
+                             <button onClick={() => acknowledgeAlert(alert.id)} className="text-xs hover:underline opacity-60 hover:opacity-100 font-bold">Ack</button>
                         </div>
                     ))}
                   </div>
                 )}
                 <div className="mt-3 pt-3 border-t border-dust-grey/30 text-center">
-                    <button onClick={() => { setIsNotificationsOpen(false); setCurrentPage('alerts'); }} className="text-xs font-semibold text-foreground hover:underline">
+                    <button onClick={() => { setIsNotificationsOpen(false); setCurrentPage('alerts'); }} className="text-xs font-bold text-foreground hover:underline">
                         Manage all alerts
                     </button>
                 </div>
@@ -631,63 +633,62 @@ const App = () => {
                   initial={{ opacity: 0 }} 
                   animate={{ opacity: 1 }} 
                   transition={{ delay: 0.2 }}
-                  className="text-foreground-muted"
+                  className="text-foreground-muted font-medium"
                 >
                   Real-time performance metrics and availability status.
                 </motion.p>
               </div>
               <div className="flex items-center justify-end gap-2">
-                <span className="flex items-center gap-2 px-3 py-1 bg-linen border border-dust-grey rounded-full text-xs font-medium text-foreground-muted">
+                <span className="flex items-center gap-2 px-3 py-1 bg-linen border border-dust-grey rounded-full text-xs font-bold text-foreground-muted shadow-sm">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     Live Monitoring
                 </span>
-                <span className="text-xs text-foreground-muted">Last updated: Just now</span>
+                <span className="text-xs font-medium text-foreground-muted">Last updated: Just now</span>
               </div>
             </div>
 
-            {/* Stats Grid */}
+            {/* Layout Grid with System Topology */}
             <motion.div 
               variants={containerVariants}
               initial="hidden"
               animate="show"
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
             >
-              <motion.div variants={cardVariants} whileHover="hover" whileTap="tap" className="bg-linen border border-dust-grey rounded-xl p-5 shadow-sm transition-colors relative overflow-hidden group cursor-default">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Server className="w-16 h-16 text-foreground" />
-                  </div>
-                  <p className="text-foreground-muted text-sm font-medium">Avg. Uptime</p>
-                  <h3 className="text-3xl font-bold text-foreground mt-2">{avgUptime}%</h3>
-                  <div className="mt-2 text-xs text-green-600 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> All systems normal
-                  </div>
+              {/* Main Topology Visual (Takes 2 cols) */}
+              <motion.div variants={cardVariants} className="lg:col-span-2 flex flex-col h-full">
+                 <SystemTopology className="h-[240px] w-full" />
               </motion.div>
 
-              <motion.div variants={cardVariants} whileHover="hover" whileTap="tap" className="bg-linen border border-dust-grey rounded-xl p-5 shadow-sm transition-colors cursor-default">
-                  <p className="text-foreground-muted text-sm font-medium">Active Services</p>
-                  <h3 className="text-3xl font-bold text-foreground mt-2">{services.length}</h3>
-                  <div className="w-full mt-3">
-                    <AnimatedBeam className="h-6" active={true} />
-                  </div>
-              </motion.div>
-
-              <motion.div variants={cardVariants} whileHover="hover" whileTap="tap" className="bg-linen border border-dust-grey rounded-xl p-5 shadow-sm transition-colors cursor-default">
-                  <p className="text-foreground-muted text-sm font-medium">Operational</p>
-                  <h3 className="text-3xl font-bold text-foreground mt-2">{operationalCount}</h3>
-                  <div className="mt-2 text-xs text-foreground-muted font-medium">
-                    services performing optimally
-                  </div>
-              </motion.div>
-
-              <motion.div variants={cardVariants} whileHover="hover" whileTap="tap" className={`border rounded-xl p-5 shadow-sm transition-colors cursor-default ${incidentCount > 0 ? 'bg-powder-petal/30 border-red-200' : 'bg-linen border-dust-grey'}`}>
-                  <p className="text-foreground-muted text-sm font-medium">Active Incidents</p>
-                  <h3 className="text-3xl font-bold text-foreground mt-2">{incidentCount}</h3>
-                  {incidentCount > 0 && (
-                      <div className="mt-2 text-xs text-red-600 font-medium flex items-center gap-1 animate-pulse">
-                        <AlertCircle className="w-3 h-3" /> Attention required
+              {/* Stats Column */}
+              <div className="grid grid-cols-1 gap-4">
+                  <motion.div variants={cardVariants} className="bg-linen border border-black dark:border-dust-grey rounded-xl p-5 shadow-card transition-all duration-500 hover:shadow-soft relative overflow-hidden group cursor-default">
+                      <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
+                        <Server className="w-16 h-16 text-foreground" />
                       </div>
-                  )}
-              </motion.div>
+                      <p className="text-foreground-muted text-xs font-bold uppercase tracking-wider">Avg. Uptime</p>
+                      <h3 className="text-3xl font-bold text-foreground mt-2">{avgUptime}%</h3>
+                      <div className="mt-2 text-xs text-green-600 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> All systems normal
+                      </div>
+                  </motion.div>
+
+                  <motion.div variants={cardVariants} className={`border rounded-xl p-5 shadow-card transition-all duration-500 hover:shadow-soft cursor-default flex flex-col justify-center ${incidentCount > 0 ? 'bg-powder-petal/30 border-red-200 dark:border-red-900/30 dark:bg-red-950/10' : 'bg-linen border-black dark:border-dust-grey'}`}>
+                      <p className="text-foreground-muted text-xs font-bold uppercase tracking-wider">Active Incidents</p>
+                      <div className="flex items-baseline gap-2 mt-2">
+                         <h3 className="text-3xl font-bold text-foreground">{incidentCount}</h3>
+                         {incidentCount > 0 && <span className="text-xs font-bold text-red-500">Critical</span>}
+                      </div>
+                      {incidentCount > 0 ? (
+                          <div className="mt-2 text-xs text-red-600 dark:text-red-400 font-bold flex items-center gap-1 animate-pulse">
+                            <AlertCircle className="w-3 h-3" /> Attention required
+                          </div>
+                      ) : (
+                          <div className="mt-2 text-xs text-foreground-muted font-bold flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-green-500" /> No active incidents
+                          </div>
+                      )}
+                  </motion.div>
+              </div>
             </motion.div>
 
             {/* Main Dashboard Content */}
@@ -695,8 +696,8 @@ const App = () => {
               {/* Service List */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-foreground">Monitored Services</h2>
-                    <button onClick={() => setCurrentPage('monitors')} className="text-sm text-foreground-muted hover:text-foreground underline">View all monitors</button>
+                    <h2 className="text-xl font-bold text-foreground">Monitored Services</h2>
+                    <button onClick={() => setCurrentPage('monitors')} className="text-sm font-semibold text-foreground-muted hover:text-foreground underline">View all monitors</button>
                 </div>
                 <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-4">
                     {services.slice(0, 3).map((service) => (
@@ -716,8 +717,8 @@ const App = () => {
                 transition={{ delay: 0.3 }}
                 className="space-y-6"
               >
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-dust-grey">
-                    <h3 className="font-semibold text-foreground mb-4">Regional Status</h3>
+                <div className="bg-linen rounded-xl p-6 shadow-card border border-black dark:border-dust-grey transition-all duration-500 hover:shadow-soft">
+                    <h3 className="font-bold text-foreground mb-4 text-sm uppercase tracking-wider">Regional Status</h3>
                     <div className="space-y-4">
                         {[
                             { region: 'us-east-1', status: 'Operational', latency: '45ms' },
@@ -728,10 +729,10 @@ const App = () => {
                             <div key={i} className="flex items-center justify-between text-sm">
                                 <div className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full ${r.status === 'Operational' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                                    <span className="text-foreground-muted">{r.region}</span>
+                                    <span className="text-foreground-muted font-medium">{r.region}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="font-mono text-foreground text-xs">{r.latency}</span>
+                                    <span className="font-mono text-foreground font-semibold text-xs">{r.latency}</span>
                                     <MiniBeam active={r.status === 'Degraded'} />
                                 </div>
                             </div>
@@ -739,19 +740,19 @@ const App = () => {
                     </div>
                 </div>
 
-                <div className="bg-powder-petal/20 rounded-xl p-6 border border-almond-silk/50">
-                    <h3 className="font-semibold text-foreground mb-2">Planned Maintenance</h3>
+                <div className="bg-parchment rounded-xl p-6 border border-black dark:border-dust-grey shadow-soft transition-all duration-500">
+                    <h3 className="font-bold text-foreground mb-2 text-sm uppercase tracking-wider">Planned Maintenance</h3>
                     <div className="flex gap-3 items-start mt-4">
-                         <div className="bg-white p-2 rounded-lg border border-dust-grey/50 text-center min-w-[60px]">
-                             <div className="text-xs text-red-500 font-bold uppercase">Oct</div>
+                         <div className="bg-linen p-2 rounded-lg border border-dust-grey text-center min-w-[60px] shadow-sm">
+                             <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Oct</div>
                              <div className="text-xl font-bold text-foreground">24</div>
                          </div>
                          <div>
-                             <h4 className="text-sm font-medium text-foreground">Database Migration</h4>
-                             <p className="text-xs text-foreground-muted mt-1 leading-relaxed">
+                             <h4 className="text-sm font-bold text-foreground">Database Migration</h4>
+                             <p className="text-xs text-foreground-muted font-medium mt-1 leading-relaxed">
                                 Scheduled maintenance for the primary user database cluster. Expected downtime: 15 mins.
                              </p>
-                             <div className="mt-2 flex items-center gap-2 text-xs text-foreground-muted">
+                             <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-foreground-muted">
                                  <Clock className="w-3 h-3" /> 02:00 AM - 04:00 AM UTC
                              </div>
                          </div>
@@ -775,19 +776,18 @@ const App = () => {
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                    <h1 className="text-3xl font-bold text-foreground">All Monitors</h1>
-                   <p className="text-foreground-muted">Detailed performance metrics for all configured services.</p>
+                   <p className="text-foreground-muted font-medium">Detailed performance metrics for all configured services.</p>
                 </div>
-                <motion.button 
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-4 py-2 bg-foreground text-parchment rounded-lg text-sm font-medium hover:bg-stone-700 transition-colors"
+                <RippleButton 
+                  className="bg-foreground text-parchment hover:bg-stone-700 text-sm font-bold shadow-card"
+                  rippleColor="rgba(255, 255, 255, 0.2)"
                 >
                   + Add Monitor
-                </motion.button>
+                </RippleButton>
              </div>
 
              {/* Search and Filters Toolbar */}
-             <div className="bg-linen border border-dust-grey rounded-xl p-4 flex flex-col md:flex-row gap-4">
+             <div className="bg-linen border border-black dark:border-dust-grey rounded-xl p-4 flex flex-col md:flex-row gap-4 shadow-card">
                 {/* Search */}
                 <div className="relative flex-1">
                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
@@ -796,7 +796,7 @@ const App = () => {
                       placeholder="Search services..." 
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk"
+                      className="w-full pl-10 pr-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-medium text-foreground focus:outline-none focus:border-foreground-muted transition-colors"
                    />
                 </div>
 
@@ -807,7 +807,7 @@ const App = () => {
                       <select 
                          value={filterStatus}
                          onChange={(e) => setFilterStatus(e.target.value)}
-                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk cursor-pointer min-w-[140px]"
+                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-semibold text-foreground focus:outline-none focus:border-foreground-muted cursor-pointer min-w-[140px]"
                       >
                          <option value="All">All Statuses</option>
                          <option value={ServiceStatus.OPERATIONAL}>Operational</option>
@@ -823,7 +823,7 @@ const App = () => {
                       <select 
                          value={filterRegion}
                          onChange={(e) => setFilterRegion(e.target.value)}
-                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk cursor-pointer min-w-[140px]"
+                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-semibold text-foreground focus:outline-none focus:border-foreground-muted cursor-pointer min-w-[140px]"
                       >
                          <option value="All">All Regions</option>
                          {uniqueRegions.map(r => <option key={r} value={r}>{r}</option>)}
@@ -836,7 +836,7 @@ const App = () => {
                       <select 
                          value={filterTag}
                          onChange={(e) => setFilterTag(e.target.value)}
-                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk cursor-pointer min-w-[140px]"
+                         className="appearance-none pl-9 pr-8 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-semibold text-foreground focus:outline-none focus:border-foreground-muted cursor-pointer min-w-[140px]"
                       >
                          <option value="All">All Tags</option>
                          {uniqueTags.map(t => <option key={t} value={t}>{t}</option>)}
@@ -848,7 +848,7 @@ const App = () => {
                    {(searchQuery || filterStatus !== 'All' || filterRegion !== 'All' || filterTag !== 'All') && (
                       <button 
                         onClick={clearFilters}
-                        className="flex items-center gap-1 px-3 py-2 text-sm text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 text-sm font-bold text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                       >
                         <XCircle className="w-4 h-4" /> Clear
                       </button>
@@ -867,17 +867,17 @@ const App = () => {
                      />
                   ))
                 ) : (
-                  <motion.div variants={itemVariants} className="text-center py-12 bg-linen border border-dust-grey rounded-xl border-dashed">
+                  <motion.div variants={itemVariants} className="text-center py-12 bg-linen border border-black dark:border-dust-grey rounded-xl border-dashed">
                      <Search className="w-12 h-12 text-dust-grey mx-auto mb-3" />
-                     <h3 className="text-lg font-medium text-foreground">No services found</h3>
-                     <p className="text-foreground-muted">Try adjusting your search or filters.</p>
+                     <h3 className="text-lg font-bold text-foreground">No services found</h3>
+                     <p className="text-foreground-muted font-medium">Try adjusting your search or filters.</p>
                   </motion.div>
                 )}
              </motion.div>
           </motion.div>
         )}
 
-        {/* ALERTS VIEW */}
+        {/* ALERTS VIEW - (Keeping content same as provided in prompt) */}
         {currentPage === 'alerts' && (
           <motion.div 
             key="alerts"
@@ -887,16 +887,17 @@ const App = () => {
             exit="exit"
             className="space-y-6"
           >
+            {/* ... Alerts View Content ... */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                    <h1 className="text-3xl font-bold text-foreground">Alert Management</h1>
-                   <p className="text-foreground-muted">View, acknowledge, and resolve system alerts.</p>
+                   <p className="text-foreground-muted font-medium">View, acknowledge, and resolve system alerts.</p>
                 </div>
             </div>
 
             {/* Filter Toolbar */}
-            <div className="bg-linen border border-dust-grey rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground-muted">
+            <div className="bg-linen border border-black dark:border-dust-grey rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center shadow-card">
+                <div className="flex items-center gap-2 text-sm font-bold text-foreground-muted">
                     <Filter className="w-4 h-4" /> Filters:
                 </div>
                 
@@ -904,7 +905,7 @@ const App = () => {
                     <select 
                          value={alertFilterStatus}
                          onChange={(e) => setAlertFilterStatus(e.target.value)}
-                         className="appearance-none px-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk cursor-pointer min-w-[120px]"
+                         className="appearance-none px-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-semibold text-foreground focus:outline-none focus:border-foreground-muted cursor-pointer min-w-[120px]"
                     >
                          <option value="All">All Statuses</option>
                          <option value="Active">Active</option>
@@ -915,7 +916,7 @@ const App = () => {
                     <select 
                          value={alertFilterSeverity}
                          onChange={(e) => setAlertFilterSeverity(e.target.value)}
-                         className="appearance-none px-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm text-foreground focus:outline-none focus:border-almond-silk cursor-pointer min-w-[120px]"
+                         className="appearance-none px-4 py-2 bg-parchment border border-dust-grey rounded-lg text-sm font-semibold text-foreground focus:outline-none focus:border-foreground-muted cursor-pointer min-w-[120px]"
                     >
                          <option value="All">All Severities</option>
                          <option value="Critical">Critical</option>
@@ -923,7 +924,7 @@ const App = () => {
                     </select>
                 </div>
 
-                <div className="ml-auto text-sm text-foreground-muted">
+                <div className="ml-auto text-sm font-medium text-foreground-muted">
                     Showing {filteredAlerts.length} alerts
                 </div>
             </div>
@@ -934,31 +935,35 @@ const App = () => {
                     filteredAlerts.map(alert => {
                         const service = services.find(s => s.id === alert.serviceId);
                         return (
-                            <motion.div variants={itemVariants} key={alert.id} className={`bg-linen border rounded-xl p-5 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center ${
-                                alert.status === 'resolved' ? 'border-dust-grey opacity-70' : 
-                                alert.status === 'acknowledged' ? 'border-blue-200' :
-                                alert.severity === 'critical' ? 'border-red-200 shadow-sm' : 'border-yellow-200 shadow-sm'
+                            <motion.div variants={itemVariants} key={alert.id} className={`bg-linen border rounded-xl p-5 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center shadow-sm hover:shadow-md ${
+                                alert.status === 'resolved' 
+                                  ? 'border-dust-grey opacity-70 dark:bg-stone-900/50' 
+                                  : alert.status === 'acknowledged' 
+                                  ? 'border-blue-200 dark:border-blue-800'
+                                  : alert.severity === 'critical' 
+                                  ? 'border-red-200 dark:border-red-900/50' 
+                                  : 'border-yellow-200 dark:border-yellow-900/50'
                             }`}>
                                 <div className="flex items-start gap-4">
                                     <div className={`p-2 rounded-lg shrink-0 ${
-                                        alert.status === 'resolved' ? 'bg-stone-200 text-stone-500' :
-                                        alert.severity === 'critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
+                                        alert.status === 'resolved' ? 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400' :
+                                        alert.severity === 'critical' ? 'bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400' : 'bg-yellow-100 text-yellow-600 dark:bg-yellow-950/40 dark:text-yellow-400'
                                     }`}>
                                         {alert.status === 'resolved' ? <CheckSquare className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-semibold text-foreground">{service?.name || 'Unknown Service'}</h3>
+                                            <h3 className="font-bold text-foreground">{service?.name || 'Unknown Service'}</h3>
                                             <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider border ${
-                                                alert.status === 'active' ? 'bg-red-100 text-red-700 border-red-200' :
-                                                alert.status === 'acknowledged' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                'bg-stone-100 text-stone-600 border-stone-200'
+                                                alert.status === 'active' ? 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/40' :
+                                                alert.status === 'acknowledged' ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40' :
+                                                'bg-stone-100 text-stone-600 border-stone-200 dark:bg-stone-800 dark:text-stone-400 dark:border-stone-700'
                                             }`}>
                                                 {alert.status}
                                             </span>
-                                            <span className="text-[10px] text-foreground-muted">{alert.timestamp}</span>
+                                            <span className="text-[10px] font-medium text-foreground-muted">{alert.timestamp}</span>
                                         </div>
-                                        <p className="text-sm text-foreground">{alert.message}</p>
+                                        <p className="text-sm font-medium text-foreground">{alert.message}</p>
                                     </div>
                                 </div>
                                 
@@ -967,7 +972,7 @@ const App = () => {
                                         <motion.button 
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => acknowledgeAlert(alert.id)}
-                                            className="px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors flex items-center gap-1"
+                                            className="px-3 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center gap-1 dark:bg-transparent dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-900/20"
                                         >
                                             <Eye className="w-3 h-3" /> Acknowledge
                                         </motion.button>
@@ -976,13 +981,13 @@ const App = () => {
                                         <motion.button 
                                             whileTap={{ scale: 0.95 }}
                                             onClick={() => resolveAlert(alert.id)}
-                                            className="px-3 py-1.5 bg-white border border-green-200 text-green-700 rounded-lg text-xs font-semibold hover:bg-green-50 transition-colors flex items-center gap-1"
+                                            className="px-3 py-1.5 bg-white border border-green-200 text-green-700 rounded-lg text-xs font-bold hover:bg-green-50 transition-colors flex items-center gap-1 dark:bg-transparent dark:border-green-800 dark:text-green-300 dark:hover:bg-green-900/20"
                                         >
                                             <CheckCircle2 className="w-3 h-3" /> Resolve
                                         </motion.button>
                                     )}
                                     {alert.status === 'resolved' && (
-                                        <span className="text-xs font-medium text-stone-500 flex items-center gap-1 px-3 py-1.5">
+                                        <span className="text-xs font-bold text-stone-500 dark:text-stone-400 flex items-center gap-1 px-3 py-1.5">
                                             <Archive className="w-3 h-3" /> Archived
                                         </span>
                                     )}
@@ -991,10 +996,10 @@ const App = () => {
                         );
                     })
                 ) : (
-                    <motion.div variants={itemVariants} className="text-center py-16 bg-linen border border-dust-grey rounded-xl border-dashed">
+                    <motion.div variants={itemVariants} className="text-center py-16 bg-linen border border-black dark:border-dust-grey rounded-xl border-dashed">
                         <CheckCircle2 className="w-12 h-12 text-green-500/50 mx-auto mb-3" />
-                        <h3 className="text-lg font-medium text-foreground">All clear</h3>
-                        <p className="text-foreground-muted">No alerts matching your filters.</p>
+                        <h3 className="text-lg font-bold text-foreground">All clear</h3>
+                        <p className="text-foreground-muted font-medium">No alerts matching your filters.</p>
                     </motion.div>
                 )}
             </motion.div>
@@ -1013,21 +1018,21 @@ const App = () => {
           >
              <div>
                  <h1 className="text-3xl font-bold text-foreground">Incidents</h1>
-                 <p className="text-foreground-muted">History of outages, degradations, and resolved issues.</p>
+                 <p className="text-foreground-muted font-medium">History of outages, degradations, and resolved issues.</p>
              </div>
 
              {/* Active Incidents */}
              {incidentCount > 0 && (
                <div className="space-y-4">
-                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <ShieldAlert className="w-5 h-5 text-red-500" /> Active Incidents
                  </h2>
                  {services.filter(s => s.status !== ServiceStatus.OPERATIONAL).map(service => (
-                    <motion.div variants={itemVariants} key={service.id} className="bg-red-50 border border-red-200 rounded-xl p-6">
+                    <motion.div variants={itemVariants} key={service.id} className="bg-red-50/50 border border-red-200 rounded-xl p-6 shadow-sm dark:bg-red-950/10 dark:border-red-900/30">
                        <div className="flex items-start justify-between">
                           <div>
-                             <h3 className="text-lg font-bold text-red-900">{service.name} is {service.status}</h3>
-                             <p className="text-red-700 mt-1 text-sm">Investigating - High latency detected in {service.region} region.</p>
+                             <h3 className="text-lg font-bold text-red-900 dark:text-red-200">{service.name} is {service.status}</h3>
+                             <p className="text-red-700 dark:text-red-300 mt-1 text-sm font-medium">Investigating - High latency detected in {service.region} region.</p>
                           </div>
                        </div>
                     </motion.div>
@@ -1037,19 +1042,21 @@ const App = () => {
 
              {/* Past Incidents (Mock) */}
              <div className="space-y-4 pt-4">
-                 <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Clock className="w-5 h-5" /> Past Incidents
                  </h2>
-                 <motion.div variants={containerVariants} initial="hidden" animate="show" className="bg-linen border border-dust-grey rounded-xl overflow-hidden">
+                 <motion.div variants={containerVariants} initial="hidden" animate="show" className="bg-linen border border-black dark:border-dust-grey rounded-xl overflow-hidden shadow-card">
                     {[1, 2, 3].map((_, i) => (
-                       <motion.div variants={itemVariants} key={i} className="p-4 border-b border-dust-grey/50 last:border-0 hover:bg-parchment/50 transition-colors">
-                          <div className="flex items-center gap-3">
+                       <motion.div variants={itemVariants} key={i} className="p-4 hover:bg-parchment transition-colors rounded-lg mb-1">
+                          <div className="flex items-center gap-4">
                              <CheckCircle2 className="w-5 h-5 text-green-600" />
                              <div className="flex-1">
-                                <h4 className="text-sm font-semibold text-foreground">API Gateway Latency Spike</h4>
-                                <p className="text-xs text-foreground-muted">Resolved • Oct {20 - i}, 2023</p>
+                                <h4 className="text-sm font-bold text-foreground">API Gateway Latency Spike</h4>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <p className="text-xs font-medium text-foreground-muted">Resolved • Oct {20 - i}, 2023</p>
+                                </div>
                              </div>
-                             <span className="text-xs font-mono text-foreground-muted">Duration: 14m</span>
+                             <span className="text-xs font-mono text-foreground-muted bg-parchment px-2 py-1 rounded border border-dust-grey">14m</span>
                           </div>
                        </motion.div>
                     ))}
@@ -1073,7 +1080,6 @@ const App = () => {
         user={user}
         onSave={handleUpdateProfile}
       />
-      
     </div>
   );
 };

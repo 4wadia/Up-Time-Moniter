@@ -1,3 +1,4 @@
+
 export enum ServiceStatus {
   OPERATIONAL = 'Operational',
   DEGRADED = 'Degraded',
@@ -53,13 +54,6 @@ export interface Service {
   thresholds: Threshold[];
 }
 
-export interface IncidentAnalysis {
-  rootCause: string;
-  impact: string;
-  suggestedFix: string;
-  estimatedResolutionTime: string;
-}
-
 export type PageView = 'dashboard' | 'incidents' | 'monitors' | 'alerts' | 'signin' | 'signup';
 
 export interface User {
@@ -69,11 +63,11 @@ export interface User {
 }
 
 export const THEME = {
-  parchment: '#edede9',
-  dustGrey: '#d6ccc2',
-  linen: '#f5ebe0',
-  powderPetal: '#e3d5ca',
-  almondSilk: '#d5bdaf',
-  foreground: '#4a403a',
-  foregroundMuted: '#8d7f76',
+  parchment: 'var(--color-parchment)',
+  dustGrey: 'var(--color-dust-grey)',
+  linen: 'var(--color-linen)',
+  powderPetal: 'var(--color-powder-petal)',
+  almondSilk: 'var(--color-almond-silk)',
+  foreground: 'var(--color-foreground)',
+  foregroundMuted: 'var(--color-foreground-muted)',
 };

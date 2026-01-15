@@ -50,23 +50,23 @@ export const ProfileModal: React.FC<Props> = ({ isOpen, onClose, user, onSave })
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-stone-800/20 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/20 backdrop-blur-sm"
           />
           
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-md bg-linen border border-dust-grey rounded-2xl shadow-xl overflow-hidden"
+            className="relative w-full max-w-md bg-linen shadow-card rounded-2xl overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-dust-grey/50 bg-parchment/50">
-              <h2 className="text-xl font-semibold text-foreground">Edit Profile</h2>
+            <div className="flex items-center justify-between p-6 border-b border-dust-grey bg-parchment/30">
+              <h2 className="text-lg font-bold text-foreground">Edit Profile</h2>
               <button 
                 onClick={onClose}
-                className="p-2 hover:bg-dust-grey/20 rounded-full transition-colors"
+                className="p-2 hover:bg-parchment rounded-full transition-colors text-foreground-muted hover:text-foreground"
               >
-                <X className="w-5 h-5 text-foreground" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -74,7 +74,7 @@ export const ProfileModal: React.FC<Props> = ({ isOpen, onClose, user, onSave })
             <div className="p-8 space-y-6">
                 {/* Avatar Placeholder */}
                 <div className="flex flex-col items-center gap-3 mb-6">
-                    <div className="w-24 h-24 rounded-full bg-almond-silk/30 border-2 border-dashed border-dust-grey flex items-center justify-center relative group cursor-pointer hover:border-almond-silk transition-colors">
+                    <div className="w-24 h-24 rounded-full bg-parchment border-2 border-dashed border-dust-grey flex items-center justify-center relative group cursor-pointer hover:border-foreground-muted transition-colors">
                         <span className="text-2xl font-bold text-foreground opacity-50">{user.initials}</span>
                         <div className="absolute inset-0 bg-black/5 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <Camera className="w-6 h-6 text-foreground/70" />
@@ -84,28 +84,28 @@ export const ProfileModal: React.FC<Props> = ({ isOpen, onClose, user, onSave })
                 </div>
 
                 <div className="space-y-4">
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-foreground uppercase tracking-wider ml-1">Full Name</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider ml-1">Full Name</label>
                         <div className="relative">
                             <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
                             <input 
                                 type="text" 
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
-                                className="w-full bg-parchment border border-dust-grey rounded-lg py-2.5 pl-10 pr-4 text-foreground focus:outline-none focus:border-almond-silk focus:ring-1 focus:ring-almond-silk transition-all"
+                                className="w-full bg-parchment border border-dust-grey rounded-lg py-2.5 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:border-foreground-muted focus:ring-1 focus:ring-foreground-muted transition-all"
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-xs font-semibold text-foreground uppercase tracking-wider ml-1">Email Address</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground-muted uppercase tracking-wider ml-1">Email Address</label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-muted" />
                             <input 
                                 type="email" 
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="w-full bg-parchment border border-dust-grey rounded-lg py-2.5 pl-10 pr-4 text-foreground focus:outline-none focus:border-almond-silk focus:ring-1 focus:ring-almond-silk transition-all"
+                                className="w-full bg-parchment border border-dust-grey rounded-lg py-2.5 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:border-foreground-muted focus:ring-1 focus:ring-foreground-muted transition-all"
                             />
                         </div>
                     </div>
@@ -113,7 +113,7 @@ export const ProfileModal: React.FC<Props> = ({ isOpen, onClose, user, onSave })
             </div>
 
             {/* Footer */}
-            <div className="bg-parchment/50 p-4 border-t border-dust-grey/50 flex justify-end gap-3">
+            <div className="bg-linen p-4 border-t border-dust-grey flex justify-end gap-3">
                 <button 
                     onClick={onClose} 
                     className="px-4 py-2 bg-transparent text-foreground-muted hover:text-foreground text-sm font-medium transition-colors"
@@ -122,7 +122,7 @@ export const ProfileModal: React.FC<Props> = ({ isOpen, onClose, user, onSave })
                 </button>
                 <button 
                     onClick={handleSave} 
-                    className="flex items-center gap-2 px-4 py-2 bg-foreground text-white rounded-lg text-sm font-medium hover:bg-stone-700 transition-colors shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-foreground text-parchment rounded-lg text-sm font-medium hover:bg-foreground/90 transition-colors shadow-sm"
                 >
                     <Save className="w-4 h-4" /> Save Changes
                 </button>

@@ -3,66 +3,129 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UpFlow AI Monitor</title>
+    <title>Sentinel Monitor</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-      body {
-        background-color: #edede9; /* parchment */
-        color: #4a403a; /* foreground */
-        font-family: 'Outfit', sans-serif;
+      :root {
+        /* Warm, Organic Light Theme */
+        --color-parchment: #F5F5F0;     /* Main Background: Slightly cleaner off-white */
+        --color-linen: #FFFFFF;         /* Card Background: Pure white for better contrast vs parchment */
+        --color-dust-grey: #E5E5E0;     /* Borders: Subtle separation */
+        --color-powder-petal: #F0F0EB;  /* Secondary Backgrounds/Hovers */
+        --color-almond-silk: #D4D4CE;   /* Accents/Focus rings */
+        --color-foreground: #2D2A26;    /* Primary Text: Deep warm grey */
+        --color-foreground-muted: #6B655F; /* Secondary Text */
       }
-      /* Custom scrollbar for aesthetic feel */
+
+      .dark {
+        /* Deep, Warm Dark Theme */
+        --color-parchment: #0C0A09;     /* Main Background: Stone 950 */
+        --color-linen: #151412;         /* Card Background: Slightly lighter than bg */
+        --color-dust-grey: #292524;     /* Borders: Stone 800 */
+        --color-powder-petal: #1C1917;  /* Secondary Backgrounds: Stone 900 */
+        --color-almond-silk: #44403C;   /* Accents: Stone 700 */
+        --color-foreground: #E7E5E4;    /* Primary Text: Stone 200 */
+        --color-foreground-muted: #A8A29E; /* Secondary Text: Stone 400 */
+      }
+
+      body {
+        background-color: var(--color-parchment);
+        color: var(--color-foreground);
+        font-family: 'Inter', sans-serif;
+      }
+
+      /* Consistent Input Styles */
+      .input-base {
+        background-color: var(--color-linen);
+        border: 1px solid var(--color-dust-grey);
+        color: var(--color-foreground);
+        transition: all 0.2s ease;
+      }
+      .input-base:focus {
+        border-color: var(--color-foreground-muted);
+        outline: none;
+        box-shadow: 0 0 0 2px var(--color-dust-grey);
+      }
+
+      /* Custom scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: #edede9; /* parchment */
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #d6ccc2; /* dust-grey */
-        border-radius: 4px;
+        background: var(--color-almond-silk);
+        border-radius: 3px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #d5bdaf; /* almond-silk */
+        background: var(--color-foreground-muted);
+      }
+
+      /* View Transitions */
+      ::view-transition-old(root),
+      ::view-transition-new(root) {
+        animation: none;
+        mix-blend-mode: normal;
       }
     </style>
     <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             colors: {
-              parchment: '#edede9',
-              'dust-grey': '#d6ccc2',
-              linen: '#f5ebe0',
-              'powder-petal': '#e3d5ca',
-              'almond-silk': '#d5bdaf',
-              foreground: '#4a403a',
-              'foreground-muted': '#8d7f76',
+              parchment: 'var(--color-parchment)',
+              'dust-grey': 'var(--color-dust-grey)',
+              linen: 'var(--color-linen)',
+              'powder-petal': 'var(--color-powder-petal)',
+              'almond-silk': 'var(--color-almond-silk)',
+              foreground: 'var(--color-foreground)',
+              'foreground-muted': 'var(--color-foreground-muted)',
             },
             fontFamily: {
-              sans: ['Outfit', 'sans-serif'],
+              sans: ['Inter', 'sans-serif'],
+            },
+            keyframes: {
+              ripple: {
+                "0%": { transform: "scale(0)", opacity: "0.5" },
+                "100%": { transform: "scale(4)", opacity: "0" },
+              },
+            },
+            animation: {
+              ripple: "ripple 0.6s linear",
+            },
+            boxShadow: {
+              'soft': '0 2px 10px rgba(0, 0, 0, 0.03)',
+              'card': '0 0 0 1px var(--color-dust-grey), 0 2px 8px rgba(0, 0, 0, 0.04)',
+              'card-hover': '0 0 0 1px var(--color-almond-silk), 0 8px 20px rgba(0, 0, 0, 0.08)',
             }
           }
         }
       }
     </script>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
-    "framer-motion": "https://esm.sh/framer-motion@^12.26.2",
     "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "framer-motion": "https://esm.sh/framer-motion@^12.26.2",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "tailwind-merge": "https://esm.sh/tailwind-merge@^3.4.0",
+    "clsx": "https://esm.sh/clsx@^2.1.1"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

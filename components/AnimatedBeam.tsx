@@ -72,10 +72,10 @@ export const AnimatedBeam: React.FC<{
       </svg>
       
       <div className="flex justify-between w-full px-4 relative z-10">
-         <div className="w-8 h-8 rounded-full bg-white border-2 border-dust-grey flex items-center justify-center shadow-sm">
+         <div className="w-8 h-8 rounded-full bg-linen border-2 border-dust-grey flex items-center justify-center shadow-sm transition-colors">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
          </div>
-         <div className="w-8 h-8 rounded-full bg-white border-2 border-dust-grey flex items-center justify-center shadow-sm">
+         <div className="w-8 h-8 rounded-full bg-linen border-2 border-dust-grey flex items-center justify-center shadow-sm transition-colors">
              <div className="w-2 h-2 rounded-full bg-foreground" />
          </div>
       </div>

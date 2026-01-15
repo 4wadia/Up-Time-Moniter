@@ -10,7 +10,7 @@ interface UptimeChartProps {
 export const UptimeChart: React.FC<UptimeChartProps> = ({ data, color = THEME.almondSilk }) => {
   return (
     <div className="h-[200px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" debounce={50}>
         <AreaChart
           data={data}
           margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
@@ -51,6 +51,7 @@ export const UptimeChart: React.FC<UptimeChartProps> = ({ data, color = THEME.al
             strokeWidth={2}
             fillOpacity={1}
             fill="url(#colorLatency)"
+            isAnimationActive={false}
           />
         </AreaChart>
       </ResponsiveContainer>
