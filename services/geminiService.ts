@@ -1,12 +1,21 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Service, IncidentAnalysis } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// SECURITY WARNING: This exposes the API key in the client-side bundle.
+// In a production environment, this should be proxied through a backend service.
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  console.warn("Gemini Service: API_KEY is missing. AI analysis will fail.");
+} else {
+  // console.warn("Gemini Service: API_KEY is present in client bundle. Ensure this is a public/restricted key or move logic to backend.");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || '' });
 
 export const analyzeIncident = async (service: Service, errorLog: string): Promise<IncidentAnalysis> => {
   try {
     const model = 'gemini-3-flash-preview';
-    
+
     const prompt = `
       You are a Site Reliability Engineer (SRE) expert. 
       Analyze the following incident for service "${service.name}" (${service.url}).
@@ -38,7 +47,7 @@ export const analyzeIncident = async (service: Service, errorLog: string): Promi
 
     const text = response.text;
     if (!text) throw new Error("No response from AI");
-    
+
     return JSON.parse(text) as IncidentAnalysis;
   } catch (error) {
     console.error("Gemini analysis failed:", error);

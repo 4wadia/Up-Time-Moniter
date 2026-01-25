@@ -213,7 +213,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings 
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <a href={`https://${service.url}`} target="_blank" rel="noreferrer" className="text-xs text-foreground-muted hover:text-almond-silk flex items-center gap-1">
+            <a href={`https://${service.url}`} target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-muted hover:text-almond-silk flex items-center gap-1">
               {service.url} <Globe className="w-3 h-3" />
             </a>
             <span className="text-dust-grey">•</span>
@@ -319,6 +319,41 @@ const App = () => {
 
   // Alerts
   const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  // --- Persistence Logic ---
+  useEffect(() => {
+    const savedServices = localStorage.getItem('sentinel_services');
+    if (savedServices) {
+      try {
+        setServices(JSON.parse(savedServices));
+      } catch (e) {
+        console.error('Failed to load services from localStorage', e);
+      }
+    }
+    
+    // Also try to restore user session
+    const savedUser = localStorage.getItem('sentinel_user');
+    if (savedUser) {
+        try {
+            setUser(JSON.parse(savedUser));
+            setCurrentPage('dashboard');
+        } catch (e) {
+            console.error('Failed to restore user session', e);
+        }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('sentinel_services', JSON.stringify(services));
+  }, [services]);
+
+  useEffect(() => {
+    if (user) {
+        localStorage.setItem('sentinel_user', JSON.stringify(user));
+    } else {
+        localStorage.removeItem('sentinel_user');
+    }
+  }, [user]);
 
   // Derived Stats
   const operationalCount = services.filter(s => s.status === ServiceStatus.OPERATIONAL).length;
