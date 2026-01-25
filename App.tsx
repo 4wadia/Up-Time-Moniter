@@ -199,15 +199,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings 
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
       <div className="flex items-start gap-4">
         <div className={`mt-1 w-3 h-3 rounded-full shrink-0 transition-shadow duration-500 ${service.status === ServiceStatus.OPERATIONAL ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]' :
-            service.status === ServiceStatus.DEGRADED ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]' :
-              'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
+          service.status === ServiceStatus.DEGRADED ? 'bg-yellow-500 shadow-[0_0_8px_rgba(234,179,8,0.4)]' :
+            'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
           }`} />
         <div>
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-foreground">{service.name}</h3>
             <span className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold tracking-wider border ${service.status === ServiceStatus.OPERATIONAL ? 'bg-green-100 text-green-700 border-green-200' :
-                service.status === ServiceStatus.DEGRADED ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
-                  'bg-red-100 text-red-700 border-red-200'
+              service.status === ServiceStatus.DEGRADED ? 'bg-yellow-100 text-yellow-700 border-yellow-200' :
+                'bg-red-100 text-red-700 border-red-200'
               }`}>
               {service.status}
             </span>
@@ -305,6 +305,7 @@ const App = () => {
   const [serviceForThreshold, setServiceForThreshold] = useState<Service | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Filters & Search (Monitors View)
   const [searchQuery, setSearchQuery] = useState('');
@@ -476,6 +477,14 @@ const App = () => {
               <span className="font-bold text-xl tracking-tight">Sentinel</span>
             </div>
 
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-foreground-muted hover:text-foreground hover:bg-linen rounded-lg transition-colors"
+            >
+              {isMobileMenuOpen ? <XCircle className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+
             <div className="hidden md:flex items-center gap-6 text-sm font-medium text-foreground-muted">
               {['dashboard', 'incidents', 'monitors', 'alerts'].map((page) => (
                 <button
@@ -495,7 +504,7 @@ const App = () => {
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -551,6 +560,70 @@ const App = () => {
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-dust-grey/50 bg-parchment overflow-hidden"
+            >
+              <div className="px-4 py-4 space-y-4">
+                <div className="grid gap-2">
+                  {['dashboard', 'incidents', 'monitors', 'alerts'].map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => { setCurrentPage(page as PageView); setIsMobileMenuOpen(false); }}
+                      className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium capitalize transition-colors ${currentPage === page
+                        ? 'bg-foreground text-parchment'
+                        : 'text-foreground hover:bg-linen'
+                        }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-4 border-t border-dust-grey/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-almond-silk/50 border border-dust-grey flex items-center justify-center text-xs font-bold text-foreground">
+                      {user?.initials || 'JP'}
+                    </div>
+                    <div className="text-sm">
+                      <p className="font-medium text-foreground">{user?.name}</p>
+                      <p className="text-xs text-foreground-muted truncate max-w-[150px]">{user?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setIsNotificationsOpen(!isNotificationsOpen); setIsMobileMenuOpen(false); }}
+                      className="p-2 rounded-full hover:bg-linen text-foreground-muted relative"
+                    >
+                      <Bell className="w-5 h-5" />
+                      {activeAlertsCount > 0 && (
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-parchment" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => { setIsMobileMenuOpen(false); setIsProfileModalOpen(true); }}
+                      className="p-2 rounded-full hover:bg-linen text-foreground-muted"
+                    >
+                      <Settings className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      className="p-2 rounded-full hover:bg-red-50 text-red-500"
+                    >
+                      <LogOut className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </nav>
 
       {/* Main Content */}
@@ -932,12 +1005,12 @@ const App = () => {
                     const service = services.find(s => s.id === alert.serviceId);
                     return (
                       <motion.div variants={itemVariants} key={alert.id} className={`bg-linen border rounded-xl p-5 transition-all flex flex-col md:flex-row gap-4 justify-between items-start md:items-center ${alert.status === 'resolved' ? 'border-dust-grey opacity-70' :
-                          alert.status === 'acknowledged' ? 'border-blue-200' :
-                            alert.severity === 'critical' ? 'border-red-200 shadow-sm' : 'border-yellow-200 shadow-sm'
+                        alert.status === 'acknowledged' ? 'border-blue-200' :
+                          alert.severity === 'critical' ? 'border-red-200 shadow-sm' : 'border-yellow-200 shadow-sm'
                         }`}>
                         <div className="flex items-start gap-4">
                           <div className={`p-2 rounded-lg shrink-0 ${alert.status === 'resolved' ? 'bg-stone-200 text-stone-500' :
-                              alert.severity === 'critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
+                            alert.severity === 'critical' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600'
                             }`}>
                             {alert.status === 'resolved' ? <CheckSquare className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                           </div>
@@ -945,8 +1018,8 @@ const App = () => {
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-foreground">{service?.name || 'Unknown Service'}</h3>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider border ${alert.status === 'active' ? 'bg-red-100 text-red-700 border-red-200' :
-                                  alert.status === 'acknowledged' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                    'bg-stone-100 text-stone-600 border-stone-200'
+                                alert.status === 'acknowledged' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                  'bg-stone-100 text-stone-600 border-stone-200'
                                 }`}>
                                 {alert.status}
                               </span>
