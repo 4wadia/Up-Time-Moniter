@@ -1,5 +1,6 @@
 {
   "name": "upflow-ai-monitor",
+  "description": "UpFlow AI Monitor is an aesthetic, real-time uptime monitoring solution. It features AI-powered incident analysis, beautiful data visualizations, and comprehensive status tracking, all wrapped in a warm, organic color palette.",
   "private": true,
   "version": "0.0.0",
   "type": "module",
