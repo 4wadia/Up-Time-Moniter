@@ -1,12 +1,6 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # UpFlow AI Monitor
 
 UpFlow AI Monitor is an aesthetic, real-time uptime monitoring solution. It features AI-powered incident analysis, beautiful data visualizations, and comprehensive status tracking, all wrapped in a warm, organic color palette.
-
-View your app in AI Studio: https://ai.studio/apps/drive/1iAoki7gGFTk_PAFwZFt8MwBXYCdTQUAV
 
 ## Run Locally
 
