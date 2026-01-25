@@ -127,8 +127,9 @@ export const ThresholdSettingsModal: React.FC<Props> = ({ isOpen, onClose, servi
                            <label className="text-[10px] uppercase font-bold text-foreground-muted tracking-wider">Value {threshold.metric === MetricType.LATENCY ? '(ms)' : '(%)'}</label>
                            <input 
                              type="number" 
+                             min="0"
                              value={threshold.value}
-                             onChange={(e) => handleUpdateThreshold(threshold.id, 'value', Number(e.target.value))}
+                             onChange={(e) => handleUpdateThreshold(threshold.id, 'value', Math.max(0, Number(e.target.value)))}
                              className="bg-parchment border border-dust-grey rounded-md text-sm px-2 py-1 text-foreground focus:outline-none focus:border-almond-silk"
                            />
                         </div>
@@ -138,8 +139,9 @@ export const ThresholdSettingsModal: React.FC<Props> = ({ isOpen, onClose, servi
                            <label className="text-[10px] uppercase font-bold text-foreground-muted tracking-wider">Duration (min)</label>
                            <input 
                              type="number" 
+                             min="0"
                              value={threshold.durationMinutes}
-                             onChange={(e) => handleUpdateThreshold(threshold.id, 'durationMinutes', Number(e.target.value))}
+                             onChange={(e) => handleUpdateThreshold(threshold.id, 'durationMinutes', Math.max(0, Number(e.target.value)))}
                              className="bg-parchment border border-dust-grey rounded-md text-sm px-2 py-1 text-foreground focus:outline-none focus:border-almond-silk"
                            />
                         </div>

@@ -1,6 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Service, IncidentAnalysis } from "../types";
 
+// SECURITY WARNING:
+// The API key below is exposed in the frontend bundle.
+// For production, this call should be proxied through a backend server
+// to keep the API key secret.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const analyzeIncident = async (service: Service, errorLog: string): Promise<IncidentAnalysis> => {

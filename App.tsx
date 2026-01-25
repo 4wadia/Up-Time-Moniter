@@ -213,7 +213,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onThresholdSettings 
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-1">
-            <a href={`https://${service.url}`} target="_blank" rel="noreferrer" className="text-xs text-foreground-muted hover:text-almond-silk flex items-center gap-1">
+            <a href={`https://${service.url}`} target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-muted hover:text-almond-silk flex items-center gap-1">
               {service.url} <Globe className="w-3 h-3" />
             </a>
             <span className="text-dust-grey">•</span>
@@ -297,7 +297,15 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
 
   // App Data
-  const [services, setServices] = useState<Service[]>(initialServices);
+  const [services, setServices] = useState<Service[]>(() => {
+    try {
+      const saved = localStorage.getItem('sentinel_services');
+      return saved ? JSON.parse(saved) : initialServices;
+    } catch (e) {
+      console.error("Failed to load services from storage", e);
+      return initialServices;
+    }
+  });
 
   // Modals & Panels
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
@@ -318,7 +326,24 @@ const App = () => {
   const [alertFilterSeverity, setAlertFilterSeverity] = useState('All');
 
   // Alerts
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>(() => {
+    try {
+      const saved = localStorage.getItem('sentinel_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load alerts from storage", e);
+      return [];
+    }
+  });
+
+  // Persistence Effects
+  useEffect(() => {
+    localStorage.setItem('sentinel_services', JSON.stringify(services));
+  }, [services]);
+
+  useEffect(() => {
+    localStorage.setItem('sentinel_alerts', JSON.stringify(alerts));
+  }, [alerts]);
 
   // Derived Stats
   const operationalCount = services.filter(s => s.status === ServiceStatus.OPERATIONAL).length;
