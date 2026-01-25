@@ -297,7 +297,15 @@ const App = () => {
   const [user, setUser] = useState<User | null>(null);
 
   // App Data
-  const [services, setServices] = useState<Service[]>(initialServices);
+  const [services, setServices] = useState<Service[]>(() => {
+    try {
+      const saved = localStorage.getItem('sentinel_services');
+      return saved ? JSON.parse(saved) : initialServices;
+    } catch (e) {
+      console.error("Failed to load services from storage", e);
+      return initialServices;
+    }
+  });
 
   // Modals & Panels
   const [isThresholdModalOpen, setIsThresholdModalOpen] = useState(false);
@@ -318,42 +326,24 @@ const App = () => {
   const [alertFilterSeverity, setAlertFilterSeverity] = useState('All');
 
   // Alerts
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-
-  // --- Persistence Logic ---
-  useEffect(() => {
-    const savedServices = localStorage.getItem('sentinel_services');
-    if (savedServices) {
-      try {
-        setServices(JSON.parse(savedServices));
-      } catch (e) {
-        console.error('Failed to load services from localStorage', e);
-      }
+  const [alerts, setAlerts] = useState<Alert[]>(() => {
+    try {
+      const saved = localStorage.getItem('sentinel_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load alerts from storage", e);
+      return [];
     }
-    
-    // Also try to restore user session
-    const savedUser = localStorage.getItem('sentinel_user');
-    if (savedUser) {
-        try {
-            setUser(JSON.parse(savedUser));
-            setCurrentPage('dashboard');
-        } catch (e) {
-            console.error('Failed to restore user session', e);
-        }
-    }
-  }, []);
+  });
 
+  // Persistence Effects
   useEffect(() => {
     localStorage.setItem('sentinel_services', JSON.stringify(services));
   }, [services]);
 
   useEffect(() => {
-    if (user) {
-        localStorage.setItem('sentinel_user', JSON.stringify(user));
-    } else {
-        localStorage.removeItem('sentinel_user');
-    }
-  }, [user]);
+    localStorage.setItem('sentinel_alerts', JSON.stringify(alerts));
+  }, [alerts]);
 
   // Derived Stats
   const operationalCount = services.filter(s => s.status === ServiceStatus.OPERATIONAL).length;
