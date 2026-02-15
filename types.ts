@@ -60,7 +60,7 @@ export interface IncidentAnalysis {
   estimatedResolutionTime: string;
 }
 
-export type PageView = 'dashboard' | 'incidents' | 'monitors' | 'alerts' | 'signin' | 'signup';
+export type PageView = 'dashboard' | 'monitors' | 'monitor-detail' | 'status-pages' | 'notifications' | 'settings' | 'account' | 'logout' | 'signin' | 'signup';
 
 export interface User {
   name: string;

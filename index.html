@@ -8,36 +8,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sentinel</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background-color: #edede9;
-      /* parchment */
-      color: #4a403a;
-      /* foreground */
-      font-family: 'Outfit', sans-serif;
+      background-color: #ffffff;
+      color: #111827;
+      font-family: 'Inter', sans-serif;
     }
 
-    /* Custom scrollbar for aesthetic feel */
+    /* Custom scrollbar */
     ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+      width: 6px;
+      height: 6px;
     }
 
     ::-webkit-scrollbar-track {
-      background: #edede9;
-      /* parchment */
+      background: transparent;
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #d6ccc2;
-      /* dust-grey */
-      border-radius: 4px;
+      background: #e5e7eb;
+      border-radius: 3px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #d5bdaf;
-      /* almond-silk */
+      background: #d1d5db;
     }
   </style>
   <script>
@@ -45,16 +40,25 @@
       theme: {
         extend: {
           colors: {
-            parchment: '#edede9',
-            'dust-grey': '#d6ccc2',
-            linen: '#f5ebe0',
-            'powder-petal': '#e3d5ca',
-            'almond-silk': '#d5bdaf',
-            foreground: '#4a403a',
-            'foreground-muted': '#8d7f76',
+            border: '#e5e7eb', // gray-200
+            background: '#ffffff',
+            foreground: '#111827', // gray-900
+            muted: '#6b7280', // gray-500
+            'muted-foreground': '#9ca3af', // gray-400
+            primary: '#10b981', // emerald-500 (Monitor status green)
+            'primary-foreground': '#ffffff',
+            secondary: '#f3f4f6', // gray-100
+            accent: '#f9fafb', // gray-50
+            destructive: '#ef4444', // red-500
+            warning: '#f59e0b', // amber-500
+            success: '#10b981', // emerald-500
           },
           fontFamily: {
-            sans: ['Outfit', 'sans-serif'],
+            sans: ['Inter', 'sans-serif'],
+          },
+          boxShadow: {
+            'sm': '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            'DEFAULT': '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
           }
         }
       }
